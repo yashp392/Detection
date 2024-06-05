@@ -840,7 +840,7 @@ def perform_yolo_detection(img, threshold):
                 confidences.append(float(confidence))
                 class_ids.append(class_id)
     
-    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.3, 0.4)
+    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.2, 0.4)
     person_count = sum(1 for i in indexes.flatten() if class_ids[i] == person_idx) if len(indexes) > 0 else 0
 
     for i in indexes.flatten() if len(indexes) > 0 else []:
@@ -878,7 +878,7 @@ rtsp_url = "rtsp://user:Admin$123@125.22.133.74:600/media/video1"
 
 # Simple UI with just threshold and buttons
 col1, col2, col3 = st.columns([1, 1, 1])
-threshold = col1.number_input("Set person count threshold", min_value=1, max_value=100, value=1, step=1)
+threshold = col1.number_input("Set person count threshold", min_value=1, max_value=100, value=5, step=1)
 start_button = col2.button("Start Detection")
 stop_button = col3.button("Stop Detection")
 
