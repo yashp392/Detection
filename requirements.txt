@@ -1,4 +1,6 @@
 streamlit
+streamlit-option-menu
+streamlit-lottie
 opencv-python
 numpy
 pandas
@@ -8,4 +10,6 @@ imutils
 pygame>=2.0.0
 pytz
 mixer
+matplotlib
+seaborn
 # Add other dependencies here
