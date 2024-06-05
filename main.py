@@ -2158,9 +2158,10 @@ import pygame
 #     print("Audio initialized successfully.")
 # except pygame.error as e:
 #     print(f"Failed to initialize audio: {e}")  # Assuming the file is in the same directory
+
+
 pygame.mixer.init()
 pygame.mixer.music.load("alert.mp3")
-
 
 # Variables for alert cooldown
 last_alert_time = 0
