@@ -2158,7 +2158,7 @@ import pygame
 #     print("Audio initialized successfully.")
 # except pygame.error as e:
 #     print(f"Failed to initialize audio: {e}")  # Assuming the file is in the same directory
-
+os.environ['SDL_AUDIODRIVER'] = 'pulse'
 
 pygame.mixer.init()
 pygame.mixer.music.load("alert.mp3")
