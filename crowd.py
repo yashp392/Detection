@@ -799,6 +799,9 @@ alert_cooldown = 10  # 10 seconds cooldown between alerts
 
 # Load YOLOv3 model
 yolo_net = cv2.dnn.readNetFromDarknet("yolov3.cfg", "yolov3.weights")
+yolo_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+yolo_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+
 
 # Load class labels
 with open('coco.names', 'r') as f:
