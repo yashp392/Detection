@@ -1,0 +1,11 @@
+streamlit
+opencv-python
+numpy
+pandas
+Pillow
+requests
+imutils
+pygame>=2.0.0
+pytz
+mixer
+# Add other dependencies here
