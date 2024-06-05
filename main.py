@@ -2140,6 +2140,228 @@
 
 
 
+# import cv2
+# import numpy as np
+# from datetime import datetime
+# import os
+# import streamlit as st
+# import time
+# from imutils.video import VideoStream
+# import pytz
+# import pygame
+
+# # os.environ["SDL_AUDIODRIVER"] = "alsa"  # or "pulse" or "dummy" depending on your system
+
+# # try:
+# #     pygame.mixer.init()
+# #     pygame.mixer.music.load("alert.mp3")  # Assuming the file is in the same directory
+# #     print("Audio initialized successfully.")
+# # except pygame.error as e:
+# #     print(f"Failed to initialize audio: {e}")  # Assuming the file is in the same directory
+# os.environ['SDL_AUDIODRIVER'] = 'alsa'
+
+# pygame.mixer.init()
+# pygame.mixer.music.load("alert.mp3")
+
+# # Variables for alert cooldown
+# last_alert_time = 0
+# alert_cooldown = 10  # 10 seconds cooldown between alerts
+
+# # Load YOLOv3 model
+# yolo_net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
+
+# # Load class labels
+# with open('coco.names', 'r') as f:
+#     yolo_classes = [line.strip() for line in f.readlines()]
+
+# # Get the index of the "person" class label
+# person_idx = yolo_classes.index("person")
+
+# # Fixed confidence value
+# CONFIDENCE_THRESHOLD = 0.5
+
+# def perform_yolo_detection(img, threshold):
+#     height, width, _ = img.shape
+#     blob = cv2.dnn.blobFromImage(img, 1 / 255, (320, 320), (0, 0, 0), swapRB=True, crop=False)
+#     yolo_net.setInput(blob)
+#     output_layers_names = yolo_net.getUnconnectedOutLayersNames()
+#     layer_outputs = yolo_net.forward(output_layers_names)
+
+#     boxes = []
+#     confidences = []
+#     class_ids = []
+
+#     for output in layer_outputs:
+#         for detection in output:
+#             scores = detection[5:]
+#             class_id = np.argmax(scores)
+#             confidence = scores[class_id]
+#             if confidence > CONFIDENCE_THRESHOLD:  # Using the fixed confidence threshold
+#                 center_x = int(detection[0] * width)
+#                 center_y = int(detection[1] * height)
+#                 w = int(detection[2] * width)
+#                 h = int(detection[3] * height)
+#                 x = int(center_x - w / 2)
+#                 y = int(center_y - h / 2)
+#                 boxes.append([x, y, w, h])
+#                 confidences.append(float(confidence))
+#                 class_ids.append(class_id)
+    
+#     indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.3, 0.4)
+#     person_count = sum(1 for i in indexes.flatten() if class_ids[i] == person_idx) if len(indexes) > 0 else 0
+
+#     for i in indexes.flatten() if len(indexes) > 0 else []:
+#         if class_ids[i] == person_idx:
+#             x, y, w, h = boxes[i]
+#             color = (0, 255, 0)  # Green color for the bounding box
+#             cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+#             text = f"Person: {confidences[i]:.2f}"
+#             cv2.putText(img, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+    
+#     if person_count >= threshold:
+#         filename, timestamp = save_image(img)
+#         return img, person_count, filename, timestamp
+
+#     return img, person_count, None, None
+
+# def save_image(img):
+#     if not os.path.exists('saved_images'):
+#         os.makedirs('saved_images')
+#     utc_now = datetime.utcnow()
+#     ist_timezone = pytz.timezone("Asia/Kolkata")
+#     ist_now = utc_now.replace(tzinfo=pytz.utc).astimezone(ist_timezone)
+#     timestamp = ist_now.strftime("%Y%m%d_%H%M%S")
+#     filename = f"saved_images/{timestamp}.jpg"
+#     cv2.imwrite(filename, img)
+#     return filename, timestamp
+
+# # Streamlit UI setup
+# st.set_page_config(layout="wide")  # Use wide layout for better horizontal space
+# st.image("logo.png", width=250)
+
+# # Hidden RTSP URL input
+# rtsp_url = "rtsp://user:Admin$123@125.22.133.74:600/media/video1"
+
+# # Simple UI with just threshold and buttons
+# col1, col2, col3 = st.columns([1, 1, 1])
+# threshold = col1.number_input("Set person count threshold", min_value=1, max_value=100, value=1, step=1)
+# start_button = col2.button("Start Detection")
+# stop_button = col3.button("Stop Detection")
+
+# alert_checkbox = st.sidebar.checkbox("Enable Alert", value=True)
+
+# if start_button:
+#     st.session_state.running = True
+#     st.session_state.detection_history = []  # Reset history on start
+
+# if stop_button:
+#     st.session_state.running = False
+
+# placeholder = st.empty()
+
+# if 'running' in st.session_state and st.session_state.running:
+#     video_stream = VideoStream(src=rtsp_url).start()
+#     last_detection_time = time.time()
+#     try:
+#         while st.session_state.running:
+#             frame = video_stream.read()
+#             current_time = time.time()
+#             if current_time - last_detection_time >= 5:
+#                 processed_frame, person_count, filename, timestamp = perform_yolo_detection(frame, threshold)
+#                 last_detection_time = current_time
+#                 if filename:
+#                     # Insert new detection at the beginning of the list
+#                     st.session_state.detection_history.insert(0, (filename, datetime.now().strftime('%H:%M:%S'), person_count))
+#                     # Keep only the latest 5 detections
+#                     st.session_state.detection_history = st.session_state.detection_history
+                    
+#                     st.sidebar.write(f"Detected {person_count} persons at {st.session_state.detection_history[0][1]}")
+#                     st.sidebar.image(filename, width=550)  # Reduced width for sidebar
+
+                                            
+#                     # Check if alert should be played with cooldown
+#                     if alert_checkbox and person_count >= threshold:
+#                         current_time = time.time()
+#                         if current_time - last_alert_time > alert_cooldown:
+#                             pygame.mixer.music.play()
+#                             last_alert_time = current_time
+                
+#                 placeholder.image(processed_frame, caption="Live Stream", use_column_width=True)
+#             else:
+#                 placeholder.image(frame, caption="Live Stream", use_column_width=True)
+#             time.sleep(0.1)
+#     except Exception as e:
+#         st.error(f"Error in video stream: {e}")
+#     finally:
+#         video_stream.stop()
+
+# # Display Detection History in descending order with a limit of 5 entries
+# if 'detection_history' in st.session_state and st.session_state.detection_history:
+#     st.sidebar.header("Detection History")
+#     for filename, timestamp, person_count in st.session_state.detection_history:
+#             with col1:
+#                 st.sidebar.image(filename, use_column_width=True)
+#             with col2:
+#                 st.sidebar.write(f"Time: {timestamp}")
+#                 st.sidebar.write(f"Count: {person_count}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import cv2
 import numpy as np
 from datetime import datetime
@@ -2150,18 +2372,21 @@ from imutils.video import VideoStream
 import pytz
 import pygame
 
-# os.environ["SDL_AUDIODRIVER"] = "alsa"  # or "pulse" or "dummy" depending on your system
+# Initialize Pygame and handle errors
+def initialize_pygame():
+    try:
+        os.environ['SDL_AUDIODRIVER'] = 'alsa'
+        if not pygame.get_init():
+            pygame.init()
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+        pygame.mixer.music.load("alert.mp3")
+        # st.write("Audio initialized successfully.")
+    except pygame.error as e:
+        st.error(f"Failed to initialize audio: {e}")
 
-# try:
-#     pygame.mixer.init()
-#     pygame.mixer.music.load("alert.mp3")  # Assuming the file is in the same directory
-#     print("Audio initialized successfully.")
-# except pygame.error as e:
-#     print(f"Failed to initialize audio: {e}")  # Assuming the file is in the same directory
-os.environ['SDL_AUDIODRIVER'] = 'pulse'
-
-pygame.mixer.init()
-pygame.mixer.music.load("alert.mp3")
+# Initialize Pygame only once
+initialize_pygame()
 
 # Variables for alert cooldown
 last_alert_time = 0
@@ -2236,7 +2461,7 @@ def save_image(img):
     return filename, timestamp
 
 # Streamlit UI setup
-st.set_page_config(layout="wide")  # Use wide layout for better horizontal space
+# st.set_page_config(layout="wide")  # Use wide layout for better horizontal space
 st.image("logo.png", width=250)
 
 # Hidden RTSP URL input
@@ -2273,12 +2498,11 @@ if 'running' in st.session_state and st.session_state.running:
                     # Insert new detection at the beginning of the list
                     st.session_state.detection_history.insert(0, (filename, datetime.now().strftime('%H:%M:%S'), person_count))
                     # Keep only the latest 5 detections
-                    st.session_state.detection_history = st.session_state.detection_history
+                    st.session_state.detection_history = st.session_state.detection_history[:5]
                     
                     st.sidebar.write(f"Detected {person_count} persons at {st.session_state.detection_history[0][1]}")
                     st.sidebar.image(filename, width=550)  # Reduced width for sidebar
 
-                                            
                     # Check if alert should be played with cooldown
                     if alert_checkbox and person_count >= threshold:
                         current_time = time.time()
@@ -2299,8 +2523,10 @@ if 'running' in st.session_state and st.session_state.running:
 if 'detection_history' in st.session_state and st.session_state.detection_history:
     st.sidebar.header("Detection History")
     for filename, timestamp, person_count in st.session_state.detection_history:
-            with col1:
-                st.sidebar.image(filename, use_column_width=True)
-            with col2:
-                st.sidebar.write(f"Time: {timestamp}")
-                st.sidebar.write(f"Count: {person_count}")
+        st.sidebar.image(filename, use_column_width=True)
+        st.sidebar.write(f"Time: {timestamp}")
+        st.sidebar.write(f"Count: {person_count}")
+
+# Ensure to properly quit pygame mixer when the script ends
+import atexit
+atexit.register(pygame.mixer.quit)
