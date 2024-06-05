@@ -7,7 +7,7 @@ pandas
 Pillow
 requests
 imutils
-pygame>=2.0.0
+pygame
 pytz
 mixer
 matplotlib
