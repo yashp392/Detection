@@ -2359,9 +2359,6 @@
 
 
 
-
-
-
 import cv2
 import numpy as np
 from datetime import datetime
@@ -2370,23 +2367,6 @@ import streamlit as st
 import time
 from imutils.video import VideoStream
 import pytz
-import pygame
-
-# Initialize Pygame and handle errors
-def initialize_pygame():
-    try:
-        os.environ['SDL_AUDIODRIVER'] = 'alsa'
-        if not pygame.get_init():
-            pygame.init()
-        if not pygame.mixer.get_init():
-            pygame.mixer.init()
-        pygame.mixer.music.load("alert.mp3")
-        # st.write("Audio initialized successfully.")
-    except pygame.error as e:
-        st.error(f"Failed to initialize audio: {e}")
-
-# Initialize Pygame only once
-initialize_pygame()
 
 # Variables for alert cooldown
 last_alert_time = 0
@@ -2461,7 +2441,7 @@ def save_image(img):
     return filename, timestamp
 
 # Streamlit UI setup
-# st.set_page_config(layout="wide")  # Use wide layout for better horizontal space
+st.set_page_config(layout="wide")  # Use wide layout for better horizontal space
 st.image("logo.png", width=250)
 
 # Hidden RTSP URL input
@@ -2507,7 +2487,7 @@ if 'running' in st.session_state and st.session_state.running:
                     if alert_checkbox and person_count >= threshold:
                         current_time = time.time()
                         if current_time - last_alert_time > alert_cooldown:
-                            pygame.mixer.music.play()
+                            st.audio("alert.mp3",autoplay=True)
                             last_alert_time = current_time
                 
                 placeholder.image(processed_frame, caption="Live Stream", use_column_width=True)
@@ -2526,7 +2506,3 @@ if 'detection_history' in st.session_state and st.session_state.detection_histor
         st.sidebar.image(filename, use_column_width=True)
         st.sidebar.write(f"Time: {timestamp}")
         st.sidebar.write(f"Count: {person_count}")
-
-# Ensure to properly quit pygame mixer when the script ends
-import atexit
-atexit.register(pygame.mixer.quit)

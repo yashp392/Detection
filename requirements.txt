@@ -12,4 +12,5 @@ pytz
 mixer
 matplotlib
 seaborn
+libasound2
 # Add other dependencies here
