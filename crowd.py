@@ -590,25 +590,24 @@
 # import pytz
 # import pygame
 
-# # os.environ["SDL_AUDIODRIVER"] = "alsa"  # or "pulse" or "dummy" depending on your system
+# os.environ["SDL_AUDIODRIVER"] = "alsa"  # or "pulse" or "dummy" depending on your system
 
-# # try:
-# #     pygame.mixer.init()
-# #     pygame.mixer.music.load("alert.mp3")  # Assuming the file is in the same directory
-# #     print("Audio initialized successfully.")
-# # except pygame.error as e:
-# #     print(f"Failed to initialize audio: {e}")  # Assuming the file is in the same directory
-# os.environ['SDL_AUDIODRIVER'] = 'alsa'
+# try:
+#     pygame.mixer.init()
+#     pygame.mixer.music.load("alert.mp3")  # Assuming the file is in the same directory
+#     print("Audio initialized successfully.")
+# except pygame.error as e:
+#     print(f"Failed to initialize audio: {e}")  # Assuming the file is in the same directory
 
-# pygame.mixer.init()
-# pygame.mixer.music.load("alert.mp3")
+# # pygame.mixer.init()
+# # pygame.mixer.music.load("alert.mp3")
 
 # # Variables for alert cooldown
 # last_alert_time = 0
 # alert_cooldown = 10  # 10 seconds cooldown between alerts
 
 # # Load YOLOv3 model
-# yolo_net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
+# yolo_net = cv2.dnn.readNetFromDarknet("yolov3.cfg", "yolov3.weights")
 
 # # Load class labels
 # with open('coco.names', 'r') as f:
@@ -799,7 +798,7 @@ last_alert_time = 0
 alert_cooldown = 10  # 10 seconds cooldown between alerts
 
 # Load YOLOv3 model
-yolo_net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
+yolo_net = cv2.dnn.readNetFromDarknet("yolov3.cfg", "yolov3.weights")
 
 # Load class labels
 with open('coco.names', 'r') as f:
@@ -866,6 +865,7 @@ def save_image(img):
     cv2.imwrite(filename, img)
     return filename, timestamp
 
+
 # Streamlit UI setup
 st.set_page_config(layout="wide")  # Use wide layout for better horizontal space
 st.image("logo.png", width=250)
@@ -884,6 +884,7 @@ alert_checkbox = st.sidebar.checkbox("Enable Alert", value=True)
 if start_button:
     st.session_state.running = True
     st.session_state.detection_history = []  # Reset history on start
+    st.session_state.consecutive_detections = 0  # Counter for consecutive detections
 
 if stop_button:
     st.session_state.running = False
@@ -892,41 +893,35 @@ placeholder = st.empty()
 
 if 'running' in st.session_state and st.session_state.running:
     video_stream = VideoStream(src=rtsp_url).start()
-    last_detection_time = time.time()
     try:
         while st.session_state.running:
             frame = video_stream.read()
-            current_time = time.time()
-            if current_time - last_detection_time >= 5:
-                processed_frame, person_count, filename, timestamp = perform_yolo_detection(frame, threshold)
-                last_detection_time = current_time
+            processed_frame, person_count, filename, timestamp = perform_yolo_detection(frame, threshold)
+            
+            if person_count >= threshold:
+                st.session_state.consecutive_detections += 1  # Increment counter for consecutive detections
+            else:
+                st.session_state.consecutive_detections = 0  # Reset counter if no detection
+
+            # Display images only if detected 6 consecutive times
+            if st.session_state.consecutive_detections >= 6:
                 if filename:
-                    # Insert new detection at the beginning of the list
-                    ist_timezone = pytz.timezone('Asia/Kolkata')
-
-                    # Get the current time in IST
-                    ist_now = datetime.now(ist_timezone)
-
-                    # Format the time as a string
-                    ist_time_str = ist_now.strftime('%H:%M:%S')
-                    st.session_state.detection_history.insert(0, (filename,ist_time_str, person_count))
-                    # Keep only the latest 5 detections
-                    st.session_state.detection_history = st.session_state.detection_history[:5]
-                    
-                    st.sidebar.write(f"Detected {person_count} persons at {st.session_state.detection_history[0][1]}")
+                    st.sidebar.write(f"Detected {person_count} persons at {timestamp}")
                     st.sidebar.image(filename, width=550)  # Reduced width for sidebar
 
                     # Check if alert should be played with cooldown
-                    if alert_checkbox and person_count >= threshold:
+                    if alert_checkbox:
                         current_time = time.time()
                         if current_time - last_alert_time > alert_cooldown:
-                            st.audio("alert.mp3",autoplay=True)
+                            st.audio("alert.mp3", autoplay=True)
                             last_alert_time = current_time
-                
+
                 placeholder.image(processed_frame, caption="Live Stream", use_column_width=True)
+                st.session_state.consecutive_detections = 0  # Reset after displaying
             else:
-                placeholder.image(frame, caption="Live Stream", use_column_width=True)
-            time.sleep(0.1)
+                placeholder.image(processed_frame, caption="Live Stream", use_column_width=True)
+
+            time.sleep(0.1)  # Maintain this only if necessary to reduce CPU load
     except Exception as e:
         st.error(f"Error in video stream: {e}")
     finally:
