@@ -902,7 +902,14 @@ if 'running' in st.session_state and st.session_state.running:
                 last_detection_time = current_time
                 if filename:
                     # Insert new detection at the beginning of the list
-                    st.session_state.detection_history.insert(0, (filename, datetime.now().strftime('%H:%M:%S'), person_count))
+                    ist_timezone = pytz.timezone('Asia/Kolkata')
+
+                    # Get the current time in IST
+                    ist_now = datetime.now(ist_timezone)
+
+                    # Format the time as a string
+                    ist_time_str = ist_now.strftime('%H:%M:%S')
+                    st.session_state.detection_history.insert(0, (filename,ist_time_str, person_count))
                     # Keep only the latest 5 detections
                     st.session_state.detection_history = st.session_state.detection_history[:5]
                     
