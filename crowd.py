@@ -785,6 +785,181 @@
 
 
 
+# import cv2
+# import numpy as np
+# from datetime import datetime
+# import os
+# import streamlit as st
+# import time
+# from imutils.video import VideoStream
+# import pytz
+
+# # Variables for alert cooldown
+# last_alert_time = 0
+# alert_cooldown = 10  # 10 seconds cooldown between alerts
+
+# # Load YOLOv3 model
+# yolo_net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
+
+# # Load class labels
+# with open('coco.names', 'r') as f:
+#     yolo_classes = [line.strip() for line in f.readlines()]
+
+# # Get the index of the "person" class label
+# person_idx = yolo_classes.index("person")
+
+# # Fixed confidence value
+# CONFIDENCE_THRESHOLD = 0.5
+
+# def perform_yolo_detection(img, threshold):
+#     height, width, _ = img.shape
+#     blob = cv2.dnn.blobFromImage(img, 1 / 255, (320, 320), (0, 0, 0), swapRB=True, crop=False)
+#     yolo_net.setInput(blob)
+#     output_layers_names = yolo_net.getUnconnectedOutLayersNames()
+#     layer_outputs = yolo_net.forward(output_layers_names)
+
+#     boxes = []
+#     confidences = []
+#     class_ids = []
+
+#     for output in layer_outputs:
+#         for detection in output:
+#             scores = detection[5:]
+#             class_id = np.argmax(scores)
+#             confidence = scores[class_id]
+#             if confidence > CONFIDENCE_THRESHOLD:  # Using the fixed confidence threshold
+#                 center_x = int(detection[0] * width)
+#                 center_y = int(detection[1] * height)
+#                 w = int(detection[2] * width)
+#                 h = int(detection[3] * height)
+#                 x = int(center_x - w / 2)
+#                 y = int(center_y - h / 2)
+#                 boxes.append([x, y, w, h])
+#                 confidences.append(float(confidence))
+#                 class_ids.append(class_id)
+    
+#     indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.3, 0.4)
+#     person_count = sum(1 for i in indexes.flatten() if class_ids[i] == person_idx) if len(indexes) > 0 else 0
+
+#     for i in indexes.flatten() if len(indexes) > 0 else []:
+#         if class_ids[i] == person_idx:
+#             x, y, w, h = boxes[i]
+#             color = (0, 255, 0)  # Green color for the bounding box
+#             cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+#             text = f"Person: {confidences[i]:.2f}"
+#             cv2.putText(img, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+    
+#     if person_count >= threshold:
+#         filename, timestamp = save_image(img)
+#         return img, person_count, filename, timestamp
+
+#     return img, person_count, None, None
+
+# def save_image(img):
+#     if not os.path.exists('saved_images'):
+#         os.makedirs('saved_images')
+#     utc_now = datetime.utcnow()
+#     ist_timezone = pytz.timezone("Asia/Kolkata")
+#     ist_now = utc_now.replace(tzinfo=pytz.utc).astimezone(ist_timezone)
+#     timestamp = ist_now.strftime("%Y%m%d_%H%M%S")
+#     filename = f"saved_images/{timestamp}.jpg"
+#     cv2.imwrite(filename, img)
+#     return filename, timestamp
+
+# # Streamlit UI setup
+# st.set_page_config(layout="wide")  # Use wide layout for better horizontal space
+# st.image("logo.png", width=250)
+
+# # Hidden RTSP URL input
+# rtsp_url = "rtsp://user:Admin$123@125.22.133.74:600/media/video1"
+
+# # Simple UI with just threshold and buttons
+# col1, col2, col3 = st.columns([1, 1, 1])
+# threshold = col1.number_input("Set person count threshold", min_value=1, max_value=100, value=1, step=1)
+# start_button = col2.button("Start Detection")
+# stop_button = col3.button("Stop Detection")
+
+# alert_checkbox = st.sidebar.checkbox("Enable Alert", value=True)
+
+# if start_button:
+#     st.session_state.running = True
+#     st.session_state.detection_history = []  # Reset history on start
+
+# if stop_button:
+#     st.session_state.running = False
+
+# placeholder = st.empty()
+
+# if 'running' in st.session_state and st.session_state.running:
+#     video_stream = VideoStream(src=rtsp_url).start()
+#     last_detection_time = time.time()
+#     try:
+#         while st.session_state.running:
+#             frame = video_stream.read()
+#             current_time = time.time()
+#             if current_time - last_detection_time >= 5:
+#                 processed_frame, person_count, filename, timestamp = perform_yolo_detection(frame, threshold)
+#                 last_detection_time = current_time
+#                 if filename:
+#                     # Insert new detection at the beginning of the list
+#                     ist_timezone = pytz.timezone('Asia/Kolkata')
+
+#                     # Get the current time in IST
+#                     ist_now = datetime.now(ist_timezone)
+
+#                     # Format the time as a string
+#                     ist_time_str = ist_now.strftime('%H:%M:%S')
+#                     st.session_state.detection_history.insert(0, (filename,ist_time_str, person_count))
+#                     # Keep only the latest 5 detections
+#                     st.session_state.detection_history = st.session_state.detection_history[:5]
+                    
+#                     st.sidebar.write(f"Detected {person_count} persons at {st.session_state.detection_history[0][1]}")
+#                     st.sidebar.image(filename, width=550)  # Reduced width for sidebar
+
+#                     # Check if alert should be played with cooldown
+#                     if alert_checkbox and person_count >= threshold:
+#                         current_time = time.time()
+#                         if current_time - last_alert_time > alert_cooldown:
+#                             st.audio("alert.mp3",autoplay=True)
+#                             last_alert_time = current_time
+                
+#                 placeholder.image(processed_frame, caption="Live Stream", use_column_width=True)
+#             else:
+#                 placeholder.image(frame, caption="Live Stream", use_column_width=True)
+#             time.sleep(0.1)
+#     except Exception as e:
+#         st.error(f"Error in video stream: {e}")
+#     finally:
+#         video_stream.stop()
+
+# # Display Detection History in descending order with a limit of 5 entries
+# if 'detection_history' in st.session_state and st.session_state.detection_history:
+#     st.sidebar.header("Detection History")
+#     for filename, timestamp, person_count in st.session_state.detection_history:
+#         st.sidebar.image(filename, use_column_width=True)
+#         st.sidebar.write(f"Time: {timestamp}")
+#         st.sidebar.write(f"Count: {person_count}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import cv2
 import numpy as np
 from datetime import datetime
@@ -797,9 +972,12 @@ import pytz
 # Variables for alert cooldown
 last_alert_time = 0
 alert_cooldown = 10  # 10 seconds cooldown between alerts
+detection_start_time = None  # Track start time of detection
 
 # Load YOLOv3 model
-yolo_net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
+yolo_net = cv2.dnn.readNetFromDarknet("yolov3.cfg", "yolov3.weights")
+# yolo_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+# yolo_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
 
 # Load class labels
 with open('coco.names', 'r') as f:
@@ -838,7 +1016,7 @@ def perform_yolo_detection(img, threshold):
                 confidences.append(float(confidence))
                 class_ids.append(class_id)
     
-    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.3, 0.4)
+    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.1, 0.4)
     person_count = sum(1 for i in indexes.flatten() if class_ids[i] == person_idx) if len(indexes) > 0 else 0
 
     for i in indexes.flatten() if len(indexes) > 0 else []:
@@ -866,6 +1044,7 @@ def save_image(img):
     cv2.imwrite(filename, img)
     return filename, timestamp
 
+
 # Streamlit UI setup
 st.set_page_config(layout="wide")  # Use wide layout for better horizontal space
 st.image("logo.png", width=250)
@@ -875,7 +1054,7 @@ rtsp_url = "rtsp://user:Admin$123@125.22.133.74:600/media/video1"
 
 # Simple UI with just threshold and buttons
 col1, col2, col3 = st.columns([1, 1, 1])
-threshold = col1.number_input("Set person count threshold", min_value=1, max_value=100, value=1, step=1)
+threshold = col1.number_input("Set person count threshold", min_value=1, max_value=100, value=5, step=1)
 start_button = col2.button("Start Detection")
 stop_button = col3.button("Stop Detection")
 
@@ -883,7 +1062,9 @@ alert_checkbox = st.sidebar.checkbox("Enable Alert", value=True)
 
 if start_button:
     st.session_state.running = True
-    st.session_state.detection_history = []  # Reset history on start
+    st.session_state.last_detection = None  # Store only the last detection
+    st.session_state.consecutive_detections = 0  # Counter for consecutive detections
+    st.session_state.detection_start_time = None  # Reset detection start time
 
 if stop_button:
     st.session_state.running = False
@@ -892,50 +1073,51 @@ placeholder = st.empty()
 
 if 'running' in st.session_state and st.session_state.running:
     video_stream = VideoStream(src=rtsp_url).start()
-    last_detection_time = time.time()
     try:
         while st.session_state.running:
             frame = video_stream.read()
+            processed_frame, person_count, filename, timestamp = perform_yolo_detection(frame, threshold)
+            
             current_time = time.time()
-            if current_time - last_detection_time >= 5:
-                processed_frame, person_count, filename, timestamp = perform_yolo_detection(frame, threshold)
-                last_detection_time = current_time
+
+            if person_count >= threshold:
+                if st.session_state.detection_start_time is None:
+                    st.session_state.detection_start_time = current_time
+                elif current_time - st.session_state.detection_start_time >= 10:  # Detected for more than 10 seconds
+                    st.session_state.consecutive_detections = 6  # Directly set to 6 to display and alert
+            else:
+                st.session_state.detection_start_time = None  # Reset detection start time
+                st.session_state.consecutive_detections = 0  # Reset counter if no detection
+
+            # Display images only if detected for more than 10 seconds (6 consecutive detections)
+            if st.session_state.consecutive_detections >= 6:
                 if filename:
-                    # Insert new detection at the beginning of the list
-                    ist_timezone = pytz.timezone('Asia/Kolkata')
-
-                    # Get the current time in IST
-                    ist_now = datetime.now(ist_timezone)
-
-                    # Format the time as a string
-                    ist_time_str = ist_now.strftime('%H:%M:%S')
-                    st.session_state.detection_history.insert(0, (filename,ist_time_str, person_count))
-                    # Keep only the latest 5 detections
-                    st.session_state.detection_history = st.session_state.detection_history[:5]
-                    
-                    st.sidebar.write(f"Detected {person_count} persons at {st.session_state.detection_history[0][1]}")
+                    st.session_state.last_detection = (filename, timestamp, person_count)
+                    # Display only the last detected image
+                    st.sidebar.write(f"Detected {person_count} persons at {timestamp}")
                     st.sidebar.image(filename, width=550)  # Reduced width for sidebar
 
                     # Check if alert should be played with cooldown
-                    if alert_checkbox and person_count >= threshold:
-                        current_time = time.time()
+                    if alert_checkbox:
                         if current_time - last_alert_time > alert_cooldown:
-                            st.audio("alert.mp3",autoplay=True)
+                            st.audio("alert.mp3", autoplay=True)
                             last_alert_time = current_time
-                
+
                 placeholder.image(processed_frame, caption="Live Stream", use_column_width=True)
+                st.session_state.consecutive_detections = 0  # Reset after displaying
             else:
-                placeholder.image(frame, caption="Live Stream", use_column_width=True)
-            time.sleep(0.1)
+                placeholder.image(processed_frame, caption="Live Stream", use_column_width=True)
+
+            time.sleep(0.1)  # Maintain this only if necessary to reduce CPU load
     except Exception as e:
         st.error(f"Error in video stream: {e}")
     finally:
         video_stream.stop()
 
-# Display Detection History in descending order with a limit of 5 entries
-if 'detection_history' in st.session_state and st.session_state.detection_history:
-    st.sidebar.header("Detection History")
-    for filename, timestamp, person_count in st.session_state.detection_history:
-        st.sidebar.image(filename, use_column_width=True)
-        st.sidebar.write(f"Time: {timestamp}")
-        st.sidebar.write(f"Count: {person_count}")
+# Display only the last detected image in descending order with a limit of 5 entries
+if 'last_detection' in st.session_state and st.session_state.last_detection:
+    st.sidebar.header("Last Detection")
+    filename, timestamp, person_count = st.session_state.last_detection
+    st.sidebar.image(filename, use_column_width=True)
+    st.sidebar.write(f"Time: {timestamp}")
+    st.sidebar.write(f"Count: {person_count}")
