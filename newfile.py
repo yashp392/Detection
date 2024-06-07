@@ -96,7 +96,7 @@ st.set_page_config(layout="wide")
 st.image("logo.png", width=250)
 
 col1, col2, col3, col4 = st.columns([1.5, 1, 1, 1])
-rtsp_url = col1.text_input("RTSP URL", value="rtsp://example.com/live")
+rtsp_url = col1.text_input("RTSP URL", value="rtsp://user:Admin$123@125.22.133.74:600/media/video1")
 threshold = col2.number_input("Threshold", min_value=1, max_value=100, value=1, step=1)
 start_button = col3.button("Start Detection")
 stop_button = col4.button("Stop Detection")
