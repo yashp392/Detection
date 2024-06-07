@@ -6,18 +6,13 @@ import streamlit as st
 import time
 from imutils.video import VideoStream
 import pytz
-import pygame
+from playsound import playsound
 import threading
 
-# Initialize pygame mixer
-os.environ["SDL_AUDIODRIVER"] = "alsa"  # Ensure this is set based on your environment
-pygame.mixer.init()
+# Ensure the audio file is in the correct path
 audio_file_path = "alert.mp3"
 if not os.path.exists(audio_file_path):
     st.error("Alert sound file not found.")
-else:
-    pygame.mixer.music.load(audio_file_path)
-pygame.mixer.music.set_volume(1.0)  # Ensure the volume is set to maximum
 
 # Variables for alert cooldown
 last_alert_time = 0
@@ -92,7 +87,7 @@ def save_image(img):
 
 def play_alert():
     try:
-        pygame.mixer.music.play()
+        playsound(audio_file_path)
     except Exception as e:
         st.error(f"Failed to play alert: {str(e)}")
 
@@ -101,7 +96,7 @@ st.set_page_config(layout="wide")
 st.image("logo.png", width=250)
 
 col1, col2, col3, col4 = st.columns([1.5, 1, 1, 1])
-rtsp_url = col1.text_input("RTSP URL", value="rtsp://admin:admin@789@192.168.1.199:554/unicast/c1/s0/live")
+rtsp_url = col1.text_input("RTSP URL", value="rtsp://example.com/live")
 threshold = col2.number_input("Threshold", min_value=1, max_value=100, value=1, step=1)
 start_button = col3.button("Start Detection")
 stop_button = col4.button("Stop Detection")
